@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextHumanify - Free AI Text Humanizer</title>
+    <meta name="description" content="Free online tool to humanize AI-generated text. Make your AI content sound more natural and human-like.">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 40px 0;
+            color: white;
+        }
+        
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .tool-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .input-section, .output-section {
+            margin-bottom: 30px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        .feature {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .feature h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .feature p {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            color: white;
+            opacity: 0.8;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .char-count {
+            text-align: right;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: background 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .output-actions {
+            text-align: right;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 TextHumanify</h1>
+            <p>Free AI Text Humanizer - Make Your Content Sound Natural</p>
+        </header>
+        
+        <div class="tool-box">
+            <div class="input-section">
+                <label for="input-text">Paste your AI-generated text:</label>
+                <textarea id="input-text" placeholder="Enter your AI-generated text here... We'll help you make it sound more human and natural."></textarea>
+                <div class="char-count"><span id="input-count">0</span> characters</div>
+            </div>
+            
+            <button class="btn-primary" id="humanize-btn" onclick="humanizeText()">
+                ✨ Humanize Text
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Humanizing your text...</p>
+            </div>
+            
+            <div class="output-section" id="output-section" style="display: none;">
+                <label for="output-text">Humanized result:</label>
+                <textarea id="output-text" readonly></textarea>
+                <div class="output-actions">
+                    <span class="char-count"><span id="output-count">0</span> characters</span>
+                    <button class="btn-secondary" onclick="copyOutput()">📋 Copy</button>
+                    <button class="btn-secondary" onclick="clearAll()">🗑️ Clear</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <h3>Natural Flow</h3>
+                <p>Transform robotic AI text into smooth, human-like content that reads naturally.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>Instant Results</h3>
+                <p>Get your humanized text in seconds. No registration required, completely free.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <h3>Privacy First</h3>
+                <p>Your text is processed locally in your browser. We never store or share your content.</p>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2026 TextHumanify - Free AI Text Humanizer Tool</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Character count for input
+        document.getElementById('input-text').addEventListener('input', function() {
+            document.getElementById('input-count').textContent = this.value.length;
+        });
+        
+        function humanizeText() {
+            const input = document.getElementById('input-text').value.trim();
+            
+            if (!input) {
+                alert('Please enter some text to humanize!');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('humanize-btn').disabled = true;
+            document.getElementById('output-section').style.display = 'none';
+            
+            // Simulate processing delay
+            setTimeout(() => {
+                const humanized = applyHumanization(input);
+                
+                document.getElementById('output-text').value = humanized;
+                document.getElementById('output-count').textContent = humanized.length;
+                document.getElementById('output-section').style.display = 'block';
+                
+                // Hide loading
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('humanize-btn').disabled = false;
+                
+                // Scroll to output
+                document.getElementById('output-section').scrollIntoView({ behavior: 'smooth' });
+            }, 1500);
+        }
+        
+        function applyHumanization(text) {
+            // Simple humanization rules
+            let humanized = text;
+            
+            // Replace overly formal words with casual alternatives
+            const replacements = {
+                'utilize': 'use',
+                'demonstrate': 'show',
+                'purchase': 'buy',
+                'obtain': 'get',
+                'require': 'need',
+                'assist': 'help',
+                'inform': 'tell',
+                'however': 'but',
+                'therefore': 'so',
+                'furthermore': 'also',
+                'nevertheless': 'still',
+                'subsequently': 'then',
+                'additionally': 'plus',
+                'consequently': 'as a result',
+                'moreover': 'besides',
+                'regarding': 'about',
+                'concerning': 'about',
+                'regardless': 'no matter what',
+                'nonetheless': 'even so',
+                'whereas': 'while',
+                'hence': 'so',
+                'thus': 'so',
+                'accordingly': 'so'
+            };
+            
+            // Apply replacements (case-insensitive)
+            for (const [formal, casual] of Object.entries(replacements)) {
+                const regex = new RegExp(`\\b${formal}\\b`, 'gi');
+                humanized = humanized.replace(regex, casual);
+            }
+            
+            // Add some natural variations
+            humanized = humanized
+                .replace(/\b(It is|It's) important to note that\b/gi, 'Keep in mind that')
+                .replace(/\b(In conclusion|To conclude)\b/gi, 'So')
+                .replace(/\b(In summary|To summarize)\b/gi, 'Basically')
+                .replace(/\b(For example|For instance)\b/gi, 'Like')
+                .replace(/\b(In order to)\b/gi, 'To')
+                .replace(/\b(Due to the fact that)\b/gi, 'Because')
+                .replace(/\b(At this point in time)\b/gi, 'Now')
+                .replace(/\b(In the event that)\b/gi, 'If')
+                .replace(/\b(With regard to)\b/gi, 'About')
+                .replace(/\b(In spite of the fact that)\b/gi, 'Even though');
+            
+            // Add occasional contractions for natural feel
+            humanized = humanized
+                .replace(/\bdo not\b/gi, "don't")
+                .replace(/\bdoes not\b/gi, "doesn't")
+                .replace(/\bdid not\b/gi, "didn't")
+                .replace(/\bwill not\b/gi, "won't")
+                .replace(/\bcannot\b/gi, "can't")
+                .replace(/\bis not\b/gi, "isn't")
+                .replace(/\bare not\b/gi, "aren't")
+                .replace(/\bwas not\b/gi, "wasn't")
+                .replace(/\bwere not\b/gi, "weren't")
+                .replace(/\bhave not\b/gi, "haven't")
+                .replace(/\bhas not\b/gi, "hasn't")
+                .replace(/\bhad not\b/gi, "hadn't")
+                .replace(/\bwould not\b/gi, "wouldn't")
+                .replace(/\bcould not\b/gi, "couldn't")
+                .replace(/\bshould not\b/gi, "shouldn't");
+            
+            // Vary sentence starters
+            const starters = ['Actually,', 'Honestly,', 'To be fair,', 'Look,', 'Here\'s the thing:', ''];
+            if (Math.random() > 0.7 && !humanized.match(/^(Actually|Honestly|To be fair|Look|Here's)/i)) {
+                humanized = starters[Math.floor(Math.random() * starters.length)] + ' ' + humanized;
+            }
+            
+            return humanized.trim();
+        }
+        
+        function copyOutput() {
+            const output = document.getElementById('output-text');
+            output.select();
+            document.execCommand('copy');
+            
+            // Visual feedback
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copied!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        }
+        
+        function clearAll() {
+            document.getElementById('input-text').value = '';
+            document.getElementById('output-text').value = '';
+            document.getElementById('input-count').textContent = '0';
+            document.getElementById('output-count').textContent = '0';
+            document.getElementById('output-section').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
