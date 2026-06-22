@@ -610,10 +610,10 @@
 
             // ===== PASS 1: Kill AI meta-language & buzzwords (most aggressive) =====
             const pass1Patterns = [
-                // Meta sentences
+                // Meta sentences — REPLACE (not delete) to preserve sentence structure
                 [/在本文中[,，]?\s*/g, ''],
-                [/本文将(?:深入)?(?:探讨|介绍|讨论|分析|阐述|说明|解读)/g, ''],
-                [/本文(?:旨在|试图|致力于|着重)[\u4e00-\u9fff]+[，。]/g, ''],
+                [/本文将(?:深入)?(?:探讨|介绍|讨论|分析|阐述|说明|解读)/g, '先说说'],
+                [/本文(?:旨在|试图|致力于|着重)/g, '主要是'],
                 // Meta disclaimers
                 [/值得(?:一[提说]|注意|关注|深思)的是[,，]?\s*/g, ''],
                 [/不言而喻[,，]?\s*/g, ''],
@@ -623,21 +623,23 @@
                 [/从某种(?:意义|程度)上(?:来说|讲)[,，]?\s*/g, ''],
                 [/总(?:的|而|体)(?:来说|而言|来看)[,，]?\s*/g, '说白了，'],
                 [/一言以蔽之[,，]?\s*/g, '简单说，'],
-                // AI framing
-                [/AI\s*(?:人工智能|智能)?\s*/g, ''],
-                // Buzzword glossary (order matters: longer first)
+                // Buzzword glossary (order matters: compound before single, longer before short)
+                [/AI\s*赋能/g, 'AI帮助'],           // compound first, before standalone 赋能
+                [/深度赋能/g, '深度帮助'],           // compound
+                [/深[度入]赋能/g, '帮助'],           // standalone (already caught above usually)
+                [/赋能的/g, '的'],                    // 赋能+的 = awkward, just drop 赋能
+                [/赋能/g, '帮助'],                    // standalone 赋能
+                [/AI\s*(?:人工智能|智能)\s*/g, ''],  // standalone AI
                 [/降本增效/g, '省钱提效'],
-                [/底层逻辑/g, '根本道理'],
+                [/底层逻辑/g, '原理'],               // shorter, more natural
                 [/顶层设计/g, '整体规划'],
                 [/核心壁垒/g, '优势'],
                 [/核心竞争优势/g, '优势'],
                 [/核心优势/g, '优势'],
                 [/颠覆性/g, '突破性'],
-                [/深[度入]赋能/g, '帮助'],
-                [/赋能/g, '帮助'],
                 [/生态格局/g, '局面'],
                 [/闭环/g, '完整流程'],
-                [/抓手/g, '切入'],
+                [/抓手/g, '切入口'],
                 [/痛点/g, '问题'],
                 [/深耕/g, '专注'],
                 [/重塑/g, '改变'],
@@ -647,7 +649,7 @@
                 [/广泛(?:应用|使用)/g, '普及'],
                 [/多个维度/g, '多个方面'],
                 [/多[个维]度/g, '多方面'],
-                [/深远影[响响]/g, '影响'],
+                [/深远影响/g, '影响'],               // fixed typo: 影[响响]→影响
                 [/深度理解/g, '搞清楚'],
                 [/深度[分剖]析/g, '分析'],
                 [/持续优化/g, '不断改进'],
