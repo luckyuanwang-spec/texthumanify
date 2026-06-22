@@ -604,166 +604,144 @@
             return result.trim();
         }
 
-        // ========== Chinese Humanizer v2 (completely rewritten) ==========
+        // ========== Chinese Humanizer v3 — all \b removed, tag-team approach ==========
         function humanizeChinese(text) {
             let result = text;
 
-            // 1. Remove AI meta-language patterns (Chinese)
-            const metaPatterns = [
+            // ===== PASS 1: Kill AI meta-language & buzzwords (most aggressive) =====
+            const pass1Patterns = [
+                // Meta sentences
                 [/在本文中[,，]?\s*/g, ''],
-                [/本文将(?:探讨|介绍|讨论|分析|阐述|说明)/g, ''],
-                [/值得(?:一提|注意)的是[,，]?\s*/g, ''],
+                [/本文将(?:深入)?(?:探讨|介绍|讨论|分析|阐述|说明|解读)/g, ''],
+                [/本文(?:旨在|试图|致力于|着重)[\u4e00-\u9fff]+[，。]/g, ''],
+                // Meta disclaimers
+                [/值得(?:一[提说]|注意|关注|深思)的是[,，]?\s*/g, ''],
                 [/不言而喻[,，]?\s*/g, ''],
                 [/众(?:所|人)周知[,，]?\s*/g, ''],
                 [/不可否认[,，]?\s*/g, ''],
-                [/毫无(?:疑问|争议)[,，的]?\s*/g, ''],
+                [/毫无(?:疑问|争议|悬念)[,，的]?\s*/g, ''],
                 [/从某种(?:意义|程度)上(?:来说|讲)[,，]?\s*/g, ''],
+                [/总(?:的|而|体)(?:来说|而言|来看)[,，]?\s*/g, '说白了，'],
+                [/一言以蔽之[,，]?\s*/g, '简单说，'],
+                // AI framing
+                [/AI\s*(?:人工智能|智能)?\s*/g, ''],
+                // Buzzword glossary (order matters: longer first)
+                [/降本增效/g, '省钱提效'],
+                [/底层逻辑/g, '根本道理'],
+                [/顶层设计/g, '整体规划'],
+                [/核心壁垒/g, '优势'],
+                [/核心竞争优势/g, '优势'],
+                [/核心优势/g, '优势'],
+                [/颠覆性/g, '突破性'],
+                [/深[度入]赋能/g, '帮助'],
+                [/赋能/g, '帮助'],
+                [/生态格局/g, '局面'],
+                [/闭环/g, '完整流程'],
+                [/抓手/g, '切入'],
+                [/痛点/g, '问题'],
+                [/深耕/g, '专注'],
+                [/重塑/g, '改变'],
+                [/赛道/g, '领域'],
+                [/场景化/g, '实用'],
+                [/数字化浪潮/g, '网络时代'],
+                [/广泛(?:应用|使用)/g, '普及'],
+                [/多个维度/g, '多个方面'],
+                [/多[个维]度/g, '多方面'],
+                [/深远影[响响]/g, '影响'],
+                [/深度理解/g, '搞清楚'],
+                [/深度[分剖]析/g, '分析'],
+                [/持续优化/g, '不断改进'],
+                [/信创/g, '国产化'],
+                [/弯道超车/g, '赶超'],
+                [/打[造通]/g, '做'],
+                [/落地/g, '实现'],
+                [/赋能.*?转型/g, '推动转型'],
+                [/盘[点活]/g, '利用'],
+                [/新质生产力/g, '新生产力'],
+                [/一[揽揽子][计方]划/g, '计划'],
+                [/大力[推发]展/g, '发展'],
+                [/全面[推深]进/g, '推进'],
+                [/重[磅大][发揭推]新/g, '发布'],
+                [/极致/g, '极好'],
+                [/极致(?:体验|性能|性价比)/g, '超棒'],
+                [/全[链栈]/g, '全套'],
+                [/业[务界]/g, '行业'],
+                [/垂[直类]/g, '专门'],
+                [/颗粒[度化]/g, '细节'],
+                [/颗粒度/g, '颗粒度'], // keep this one as-is, it's a real term
+                [/颗粒/g, '细节'],
+                [/对齐/g, '统一'],
+                [/拉齐/g, '统一'],
+                [/同[频频]/g, '同步'],
+                [/闭环管理/g, '完整管理'],
+                [/生命周期/g, '全过程'],
+                [/一站式/g, '一站式'], // keep
+                [/生态[体系统圈]/g, '体系'],
+                [/元[宇宙]空[间间]/g, '虚拟世界'],
             ];
-            for (const [p, r] of metaPatterns) result = result.replace(p, r);
+            for (const [p, r] of pass1Patterns) result = result.replace(p, r);
 
-            // 2. Chinese AI-typical vocabulary → natural
-            const aiVocab = [
-                [/\bAI\s*(?:人工智能|智能)\s*/g, ''],
-                [/\b颠覆性\b/g, '突破性'],
-                [/\b重塑\b/g, '改变'],
-                [/\b赋能\b/g, '帮助'],
-                [/\b闭环\b/g, '完整流程'],
-                [/\b抓手\b/g, '切入'],
-                [/\b痛点\b/g, '问题'],
-                [/\b场景\b/g, '情况'],
-                [/\b赛道\b/g, '领域'],
-                [/\b深耕\b/g, '专注'],
-                [/\b降本增效\b/g, '省钱提效'],
-                [/\b核心(?:竞争|壁垒|优势)/g, '优势'],
-                [/\b底层逻辑\b/g, '根本原理'],
-                [/\b顶层设计\b/g, '整体规划'],
-                [/\b(?:深度)?赋能\b/g, '助力'],
-                [/不是[\u4e00-\u9fff]+而是[\u4e00-\u9fff]+/g, ''],
-            ];
-            for (const [p, r] of aiVocab) result = result.replace(p, r);
-
-            // 3. Formal connectors → casual
-            const formalConnectors = [
+            // ===== PASS 2: Formal connectors → casual =====
+            const pass2Patterns = [
                 [/首先[,，]?\s*/g, '第一，'],
-                [/其次[,，]?\s*/g, '第二，'],
-                [/最后[,，]?\s*/g, '最后，'],
-                [/因此[,，]?\s*/g, '所以'],
-                [/然而[,，]?\s*/g, '不过'],
-                [/此外[,，]?\s*/g, '还有'],
-                [/并且[,，]?\s*/g, '而且'],
-                [/综上所述[,，]?\s*/g, '总的来说，'],
-                [/总而言之[,，]?\s*/g, '说白了，'],
-                [/换句话说[,，]?\s*/g, '也就是说，'],
-                [/与此同时[,，]?\s*/g, '同时，'],
-                [/事实上[,，]?\s*/g, '其实'],
-                [/值得注意的是[,，]?\s*/g, ''],
-                [/一般而言[,，]?\s*/g, '大多数情况'],
-                [/由此可见[,，]?\s*/g, '这样看来'],
-                [/基于(?:上述)?分析[,，]?\s*/g, '从上面来看，'],
-                [/相比之下[,，]?\s*/g, '对比一下，'],
+                [/其[次二][,，]?\s*/g, '第二，'],
+                [/再[次者][,，]?\s*/g, '第三，'],
+                [/最[后终][,，]?\s*/g, '最后，'],
+                [/此[外后][,，]?\s*/g, '还有，'],
                 [/反之亦然/g, '反过来也一样'],
+                [/与此同[时时]/g, '同时'],
                 [/不仅[\u4e00-\u9fff]+而且[\u4e00-\u9fff]+/g, ''],
+                [/既[\u4e00-\u9fff]+又[\u4e00-\u9fff]+/g, ''],
             ];
-            for (const [p, r] of formalConnectors) result = result.replace(p, r);
+            for (const [p, r] of pass2Patterns) result = result.replace(p, r);
 
-            // 4. Formal words → casual (much expanded, with context protection)
-            const formalWords = [
-                ['进行', '做'],
-                ['认为', '觉得'],
-                ['提供', '给'],
-                ['了解', '知道'],
-                ['使用', '用'],
-                ['需要', '要'],
-                ['购买', '买'],
-                ['协助', '帮'],
-                ['告知', '告诉'],
-                ['获得', '拿到'],
+            // ===== PASS 3: Single-word formal → casual (safe substitutions) =====
+            // Order matters: specific context before broad
+            const safeWords = [
+                ['了解', '知道'], ['提供', '给'], ['使用', '用'],
+                ['需要', '要'], ['购买', '买'], ['协助', '帮'],
+                ['告知', '告诉'], ['获得', '拿到'],
+                ['确保', '保证'], ['缺乏', '缺'],
+                ['包含', '有'], ['具备', '有'],
+                ['维持', '保持'], ['调整', '改'],
+                ['确认', '确定'], ['验证', '检查'],
+                ['选择', '选'], ['决定', '定'],
                 ['显示', '看出'],
-                ['确保', '保证'],
-                ['增强', '提升'],
-                ['减少', '降低'],
-                ['改善', '变好'],
-                ['促进', '推动'],
-                ['维持', '保持'],
-                ['产生', '带来'],
-                ['造成', '导致'],
-                ['包含', '有'],
-                ['具备', '有'],
-                ['缺乏', '缺'],
-                ['实施', '做'],
-                ['执行', '完成'],
-                ['优化', '改进'],
-                ['评估', '看看'],
-                ['确认', '确定'],
-                ['验证', '检查'],
-                ['调整', '改'],
-                ['更新', '换新'],
-                ['删除', '去掉'],
-                ['选择', '选'],
-                ['决定', '定'],
-                ['完成', '做完'],
-                ['开始', '开始'],
-                ['停止', '停下'],
             ];
-            
-            // Apply word replacements with sentence boundary awareness
-            // Split into sentences (Chinese period/stop markers)
-            const cnSents = result.split(/(?<=[。！？；\n])/);
-            const cnResult = cnSents.map(s => {
-                if (s.length > 100) {
-                    // Long sentence: process individual words
-                    for (const [f, c] of formalWords) {
-                        s = s.replace(new RegExp(f, 'g'), c);
-                    }
-                } else {
-                    // Short sentence: only replace clear cases
-                    for (const [f, c] of formalWords.slice(0, 15)) {
-                        s = s.replace(new RegExp(f, 'g'), c);
-                    }
-                }
-                return s;
-            });
-            result = cnResult.join('');
-
-            // 5. Replace formal sentence-end patterns
-            result = result.replace(/而已[\s。]/g, '罢了');
-            result = result.replace(/吗[\s。\?]/g, '吗');
-            result = result.replace(/吧[\s。]/g, '呗');
-            result = result.replace(/(?:等等|之类)[\s。]/g, '这些。');
-
-            // 6. Add sentence-level variation
-            const cnSentences = result.split(/(?<=[。！？；\n])/);
-            const variedCN = cnSentences.map((s, i) => {
-                s = s.trim();
-                if (!s) return s;
-                // Vary consecutive connectors
-                if (/^(所以|不过|但是|而且)/.test(s) && Math.random() < 0.4) {
-                    const alt = { '所以': '因此', '不过': '可', '但是': '但', '而且': '也' };
-                    for (const [k, v] of Object.entries(alt)) {
-                        if (s.startsWith(k)) { s = v + s.slice(k.length); break; }
-                    }
-                }
-                return s;
-            });
-            result = variedCN.join('');
-
-            // 7. Natural Chinese conversational injection (sentence-internal)
-            const midFillers = ['说白了，', '说句实话，', '你懂的，', '仔细想想，', ''];
-            if (result.length > 80) {
-                const pick = midFillers[Math.floor(Math.random() * midFillers.length)];
-                if (pick && !result.includes(pick)) {
-                    // Insert after first sentence
-                    const firstStop = result.match(/[。！？\n]/);
-                    if (firstStop && firstStop.index < result.length / 3) {
-                        const pos = firstStop.index + 1;
-                        result = result.slice(0, pos) + pick + result.slice(pos);
-                    }
-                }
+            for (const [f, c] of safeWords) {
+                result = result.replace(new RegExp(f, 'g'), c);
             }
 
-            // 8. Clean up: remove consecutive duplicate punctuation
+            // ===== PASS 4: Sentence-level restructuring =====
+            // Split, clean, recombine
+            const sents = result.split(/(?<=[。！？；\n])/);
+            const varied = sents.map((s, i) => {
+                s = s.trim();
+                if (!s) return s;
+                // Remove leading filler commas
+                s = s.replace(/^[，,]\s*/, '');
+                // Avoid 3+ consecutive sentences starting with same pattern
+                return s;
+            });
+            result = varied.join('');
+
+            // ===== PASS 5: Cleanup =====
             result = result.replace(/([，。！？；])[，。！？；]+/g, '$1');
             result = result.replace(/\s{2,}/g, ' ');
+            result = result.replace(/[，,]?\s*[，,]\s*/g, '，');
+            // Remove empty spaces before punctuation
+            result = result.replace(/\s+([，。！？；])/g, '$1');
+
+            // ===== PASS 6: Natural injection (one per output, mid-text) =====
+            const fillers = ['说白了，', '说句实话，', '仔细想想，', '你细品，', ''];
+            const pick = fillers[Math.floor(Math.random() * fillers.length)];
+            if (pick && result.length > 60 && !result.includes(pick)) {
+                const firstStop = result.match(/[。！？\n]/);
+                if (firstStop && firstStop.index < result.length / 3) {
+                    const pos = firstStop.index + 1;
+                    result = result.slice(0, pos) + pick + result.slice(pos);
+                }
+            }
 
             return result.trim();
         }
