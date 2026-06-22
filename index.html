@@ -425,32 +425,76 @@
     </div>
     
     <script>
-        // Character count for input
-        document.getElementById('input-text').addEventListener('input', function() {
-            document.getElementById('input-count').textContent = this.value.length;
+        // ========== Utility ==========
+        const el = id => document.getElementById(id);
+        el('input-text').addEventListener('input', function() {
+            el('input-count').textContent = this.value.length;
         });
-        
+
         function detectLanguage(text) {
-            // Count characters from different scripts
             const chinese = (text.match(/[\u4e00-\u9fff]/g) || []).length;
             const japanese = (text.match(/[\u3040-\u309f\u30a0-\u30ff]/g) || []).length;
-            const korean = (text.match(/[\uac00-\ud7af]/g) || []).length;
-            
-            const totalChars = text.replace(/\s/g, '').length;
-            
-            if (chinese / totalChars > 0.3) return 'chinese';
-            if (japanese / totalChars > 0.2) return 'japanese';
+            const totalChars = text.replace(/\s/g, '').length || 1;
+            if (chinese / totalChars > 0.25) return 'chinese';
+            if (japanese / totalChars > 0.15) return 'japanese';
             return 'english';
         }
-        
+
+        function seededRandom(seed) {
+            let s = seed;
+            return function() { s = (s * 1664525 + 1013904223) | 0; return (s >>> 0) / 4294967296; };
+        }
+
+        // ========== English Humanizer v2 ==========
         function humanizeEnglish(text) {
             let result = text;
-            
-            // 1. Replace overly formal/phrases
+
+            // 1. Strip AI meta-language (do this first)
+            const metaPatterns = [
+                [/\bIn (?:this|the following) (?:article|essay|post|guide|section),?\s*/gi, ''],
+                [/\b(?:This|The following) (?:article|essay|post|guide) will (?:explore|discuss|cover|examine|delve into)\b[^.]*\./gi, ''],
+                [/\bAs (?:an AI|a language model|a large language model).*?[\.\n]/gi, ''],
+                [/\bIt\s+(?:is|could be|could be|may be|might be)\s+(?:worth noting|important to note|worth mentioning) that\b/gi, ''],
+                [/\bLet(?:'s| us) (?:delve|dive) (?:in(?:to)?|deeper into)\b/gi, ''],
+                [/\bDelve into\b/gi, 'Look into'],
+                [/\bIn today(?:'s)?\s+(?:digital|fast-paced|modern|ever-changing)\s+(?:landscape|world|era|age)\b/gi, 'These days']
+            ];
+            for (const [p, r] of metaPatterns) result = result.replace(p, r);
+
+            // 2. Replace AI-typical fancy words
+            const aiWords = [
+                [/\blandscape\b/gi, 'world'],
+                [/\brealm\b/gi, 'area'],
+                [/\bmultifaceted\b/gi, 'complex'],
+                [/\bparadigm\b/gi, 'model'],
+                [/\bholistic\b/gi, 'complete'],
+                [/\bsynergy\b/gi, 'teamwork'],
+                [/\brobust\b/gi, 'solid'],
+                [/\bpivotal\b/gi, 'key'],
+                [/\bparamount\b/gi, 'crucial'],
+                [/\bprofound\b/gi, 'deep'],
+                [/\bunderscore\b/gi, 'highlight'],
+                [/\bfoster\b/gi, 'build'],
+                [/\bleverage\b/gi, 'use'],
+                [/\boptimize\b/gi, 'improve'],
+                [/\bfacilitate\b/gi, 'help'],
+                [/\bstreamline\b/gi, 'simplify'],
+                [/\bharness\b/gi, 'use'],
+                [/\bembark\b/gi, 'start'],
+                [/\belevate\b/gi, 'raise'],
+                [/\bcurate\b/gi, 'pick'],
+                [/\bunveil\b/gi, 'show'],
+                [/\bspearhead\b/gi, 'lead'],
+                [/\bgalvanize\b/gi, 'motivate'],
+                [/\btrajectory\b/gi, 'path'],
+                [/\bnexus\b/gi, 'link'],
+                [/\bgame-changer\b/gi, 'breakthrough']
+            ];
+            for (const [p, r] of aiWords) result = result.replace(p, r);
+
+            // 3. Formal phrase → casual
             const formalPhrases = [
-                [/\bIn conclusion, we can say that\b/gi, 'So, what it really comes down to is'],
-                [/\bIt is important to note that\b/gi, 'Here\'s the thing'],
-                [/\bIt should be noted that\b/gi, 'Keep in mind'],
+                [/\bIt is (?:important|crucial|essential|vital|necessary) to\b/gi, 'You should'],
                 [/\bIn order to\b/gi, 'To'],
                 [/\bDue to the fact that\b/gi, 'Because'],
                 [/\bAt this point in time\b/gi, 'Right now'],
@@ -458,275 +502,431 @@
                 [/\bWith regard to\b/gi, 'About'],
                 [/\bIn spite of\b/gi, 'Despite'],
                 [/\bIn addition to\b/gi, 'Besides'],
-                [/\bIn summary,?\s*/gi, 'Bottom line: '],
+                [/\bIn (?:summary|conclusion),?\s*/gi, 'Bottom line: '],
                 [/\bTo summarize,?\s*/gi, 'So basically, '],
                 [/\bTo conclude,?\s*/gi, 'So in short, '],
                 [/\bFurthermore,?\s*/gi, 'Also, '],
-                [/\bNevertheless,?\s*/gi, 'But still, '],
+                [/\bNevertheless,?\s*/gi, 'Still, '],
                 [/\bConsequently,?\s*/gi, 'So'],
                 [/\bSubsequently,?\s*/gi, 'Then'],
-                [/\bAdditionally,?\s*/gi, 'Plus'],
-                [/\bMoreover,?\s*/gi, 'And also'],
+                [/\bAdditionally,?\s*/gi, 'Plus, '],
+                [/\bMoreover,?\s*/gi, 'And'],
                 [/\bHence,?\s*/gi, 'So'],
                 [/\bThus,?\s*/gi, 'So'],
                 [/\bTherefore,?\s*/gi, 'So'],
+                [/\bIn light of\b/gi, 'Given'],
+                [/\bFor the purpose of\b/gi, 'For'],
+                [/\bWith the exception of\b/gi, 'Except'],
+                [/\bAs a consequence\b/gi, 'As a result'],
+                [/\bBy means of\b/gi, 'Through'],
+                [/\bIn the context of\b/gi, 'In'],
+                [/\bOn the grounds that\b/gi, 'Since'],
+                [/\bA wide range of\b/gi, 'Many'],
+                [/\bA variety of\b/gi, 'Various'],
+                [/\bThe majority of\b/gi, 'Most'],
+                [/\bA large number of\b/gi, 'Many'],
+                [/\bHas the ability to\b/gi, 'Can'],
+                [/\bPlays a crucial role in\b/gi, 'Is key to'],
+                [/\bIt can be argued that\b/gi, ''],
+                [/\bThere is a need for\b/gi, 'We need'],
+                [/\bIs responsible for\b/gi, 'Handles'],
             ];
-            
-            for (const [pattern, replacement] of formalPhrases) {
-                result = result.replace(pattern, replacement);
+            for (const [p, r] of formalPhrases) result = result.replace(p, r);
+
+            // 4. Formal words → casual
+            const formalMap = [
+                ['utilize', 'use'], ['demonstrate', 'show'], ['purchase', 'buy'],
+                ['obtain', 'get'], ['require', 'need'], ['assist', 'help'],
+                ['inform', 'tell'], ['commence', 'start'], ['terminate', 'end'],
+                ['endeavor', 'try'], ['subsequently', 'then'], ['previously', 'before'],
+                ['approximately', 'about'], ['significant', 'big'], ['numerous', 'many'],
+                ['sufficient', 'enough'], ['additional', 'more'], ['alternative', 'other'],
+                ['fundamental', 'basic'], ['preliminary', 'early'], ['subsequent', 'next'],
+                ['examine', 'check'], ['implement', 'use'], ['determine', 'figure out'],
+                ['ascertain', 'find out'], ['regarding', 'about'], ['concerning', 'about'],
+                ['possess', 'have'], ['retain', 'keep'], ['expedite', 'speed up'],
+                ['mitigate', 'reduce'], ['initiate', 'start'], ['disseminate', 'share'],
+                ['ameliorate', 'improve'], ['constitute', 'make up'], ['endeavor to', 'try to'],
+                ['prior to', 'before'], ['in the vicinity of', 'near'],
+                ['with respect to', 'about'], ['in reference to', 'about'],
+                ['on the subject of', 'about'], ['aforementioned', 'mentioned'],
+            ];
+            for (const [f, c] of formalMap) {
+                result = result.replace(new RegExp(`\\b${f}\\b`, 'gi'), c);
             }
-            
-            // 2. Replace formal words with casual
-            const formalWords = {
-                'utilize': 'use',
-                'demonstrate': 'show',
-                'purchase': 'buy',
-                'obtain': 'get',
-                'require': 'need',
-                'assist': 'help',
-                'inform': 'tell',
-                'commence': 'start',
-                'terminate': 'end',
-                'endeavor': 'try',
-                'subsequently': 'then',
-                'previously': 'before',
-                'approximately': 'about',
-                'significant': 'big',
-                'numerous': 'many',
-                'sufficient': 'enough',
-                'additional': 'more',
-                'alternative': 'other',
-                'fundamental': 'basic',
-                'preliminary': 'early',
-                'subsequent': 'next',
-                'prior to': 'before',
-                'in the vicinity of': 'near',
-                'with respect to': 'about',
-                'in reference to': 'about',
-                'on the subject of': 'about'
-            };
-            
-            for (const [formal, casual] of Object.entries(formalWords)) {
-                const regex = new RegExp(`\\b${formal}\\b`, 'gi');
-                result = result.replace(regex, casual);
-            }
-            
-            // 3. Add contractions
+
+            // 5. Contractions
             const contractions = [
-                [/\bdo not\b/gi, "don't"],
-                [/\bdoes not\b/gi, "doesn't"],
-                [/\bdid not\b/gi, "didn't"],
-                [/\bwill not\b/gi, "won't"],
-                [/\bcannot\b/gi, "can't"],
-                [/\bis not\b/gi, "isn't"],
-                [/\bare not\b/gi, "aren't"],
-                [/\bwas not\b/gi, "wasn't"],
-                [/\bwere not\b/gi, "weren't"],
-                [/\bhave not\b/gi, "haven't"],
-                [/\bhas not\b/gi, "hasn't"],
-                [/\bhad not\b/gi, "hadn't"],
-                [/\bwould not\b/gi, "wouldn't"],
-                [/\bcould not\b/gi, "couldn't"],
-                [/\bshould not\b/gi, "shouldn't"],
-                [/\bI am\b/gi, "I'm"],
-                [/\byou are\b/gi, "you're"],
-                [/\bwe are\b/gi, "we're"],
-                [/\bthey are\b/gi, "they're"],
-                [/\bit is\b/gi, "it's"],
-                [/\bthat is\b/gi, "that's"],
-                [/\bwhat is\b/gi, "what's"],
-                [/\bthere is\b/gi, "there's"],
-                [/\bhere is\b/gi, "here's"],
+                [/\bdo not\b/gi, "don't"], [/\bdoes not\b/gi, "doesn't"], [/\bdid not\b/gi, "didn't"],
+                [/\bwill not\b/gi, "won't"], [/\bcannot\b/gi, "can't"], [/\bis not\b/gi, "isn't"],
+                [/\bare not\b/gi, "aren't"], [/\bwas not\b/gi, "wasn't"], [/\bwere not\b/gi, "weren't"],
+                [/\bhave not\b/gi, "haven't"], [/\bhas not\b/gi, "hasn't"], [/\bhad not\b/gi, "hadn't"],
+                [/\bwould not\b/gi, "wouldn't"], [/\bcould not\b/gi, "couldn't"], [/\bshould not\b/gi, "shouldn't"],
+                [/\bI am\b/gi, "I'm"], [/\byou are\b/gi, "you're"], [/\bwe are\b/gi, "we're"],
+                [/\bthey are\b/gi, "they're"], [/\bit is\b/gi, "it's"], [/\bthat is\b/gi, "that's"],
+                [/\bwhat is\b/gi, "what's"], [/\bthere is\b/gi, "there's"], [/\bhere is\b/gi, "here's"],
             ];
-            
-            for (const [pattern, replacement] of contractions) {
-                result = result.replace(pattern, replacement);
-            }
-            
-            // 4. Split long sentences sometimes
-            result = result.replace(/, and however/gi, '. However,');
-            result = result.replace(/, but however/gi, '. But');
-            
-            // 5. Add natural fillers randomly
-            const fillers = ['Honestly, ', 'Actually, ', 'Look, ', 'I mean, ', 'You know, ', ''];
-            if (result.length > 100 && !/^(Actually|Honestly"Look|I mean)/i.test(result)) {
-                const filler = fillers[Math.floor(Math.random() * (fillers.length - 1))];
-                if (filler) {
-                    result = filler + result.charAt(0).toLowerCase() + result.slice(1);
+            for (const [p, r] of contractions) result = result.replace(p, r);
+
+            // 6. Sentence-level variation: split long, combine short, vary openers
+            const sentences = result.split(/(?<=[.!?])\s+/);
+            const varied = sentences.map((s, i) => {
+                s = s.trim();
+                if (!s) return s;
+                // Occasionally remove "However," "Moreover," etc at sentence start
+                if (Math.random() < 0.3) {
+                    s = s.replace(/^(However|Moreover|Furthermore|Additionally|Nonetheless),\s*/i, '');
+                    if (s.length > 0) s = s.charAt(0).toUpperCase() + s.slice(1);
+                }
+                // Vary "You" openers
+                if (/^You can\b/i.test(s) && Math.random() < 0.25) {
+                    s = s.replace(/^You can\b/i, "It's easy to");
+                }
+                return s;
+            });
+            result = varied.join(' ');
+
+            // 7. Add natural conversational transitions (not random prefixes)
+            if (result.length > 150) {
+                const transitions = [
+                    "Look, here's the thing. ", "Honestly? ", "Here's what I mean. ",
+                    "The real point is this. ", "Let me put it this way. ",
+                ];
+                const idx = Math.floor(Math.random() * 3); // 60% chance
+                if (idx < transitions.length) {
+                    const secondSentenceIdx = result.indexOf('. ') + 2;
+                    if (secondSentenceIdx > 1 && secondSentenceIdx < result.length / 3) {
+                        result = result.slice(0, secondSentenceIdx) + ' ' + transitions[idx] + result.slice(secondSentenceIdx);
+                    }
                 }
             }
-            
+
             return result.trim();
         }
-        
+
+        // ========== Chinese Humanizer v2 (completely rewritten) ==========
         function humanizeChinese(text) {
             let result = text;
-            
-            // 1. Replace formal Chinese phrases
-            const formalPhrases = [
-                [/\首先/g, '首先'],
-                [/\因此/g, '所以'],
-                [/\然而/g, '但是'],
-                [/\此外/g, '还有'],
-                [/\并且/g, '而且'],
-                [/\但是/g, '不过'],
-                [/\但是/g, '但'],
-                [/\综上所述/g, '总的来说'],
-                [/\总而言之/g, '总之'],
-                [/\换句话说/g, '也就是说'],
-                [/\与此同时/g, '同时'],
-                [/\事实上/g, '其实'],
-                [/\毫无疑问/g, '毫无疑问'],
-                [/\值得注意的是/g, '值得注意的是'],
-                [/\一般来说/g, '一般来说'],
-                [/\从某种意义上/g, '某种程度上'],
-                [/\而言之/g, '来说'],
+
+            // 1. Remove AI meta-language patterns (Chinese)
+            const metaPatterns = [
+                [/在本文中[,，]?\s*/g, ''],
+                [/本文将(?:探讨|介绍|讨论|分析|阐述|说明)/g, ''],
+                [/值得(?:一提|注意)的是[,，]?\s*/g, ''],
+                [/不言而喻[,，]?\s*/g, ''],
+                [/众(?:所|人)周知[,，]?\s*/g, ''],
+                [/不可否认[,，]?\s*/g, ''],
+                [/毫无(?:疑问|争议)[,，的]?\s*/g, ''],
+                [/从某种(?:意义|程度)上(?:来说|讲)[,，]?\s*/g, ''],
+            ];
+            for (const [p, r] of metaPatterns) result = result.replace(p, r);
+
+            // 2. Chinese AI-typical vocabulary → natural
+            const aiVocab = [
+                [/\bAI\s*(?:人工智能|智能)\s*/g, ''],
+                [/\b颠覆性\b/g, '突破性'],
+                [/\b重塑\b/g, '改变'],
+                [/\b赋能\b/g, '帮助'],
+                [/\b闭环\b/g, '完整流程'],
+                [/\b抓手\b/g, '切入'],
+                [/\b痛点\b/g, '问题'],
+                [/\b场景\b/g, '情况'],
+                [/\b赛道\b/g, '领域'],
+                [/\b深耕\b/g, '专注'],
+                [/\b降本增效\b/g, '省钱提效'],
+                [/\b核心(?:竞争|壁垒|优势)/g, '优势'],
+                [/\b底层逻辑\b/g, '根本原理'],
+                [/\b顶层设计\b/g, '整体规划'],
+                [/\b(?:深度)?赋能\b/g, '助力'],
+                [/不是[\u4e00-\u9fff]+而是[\u4e00-\u9fff]+/g, ''],
+            ];
+            for (const [p, r] of aiVocab) result = result.replace(p, r);
+
+            // 3. Formal connectors → casual
+            const formalConnectors = [
+                [/首先[,，]?\s*/g, '第一，'],
+                [/其次[,，]?\s*/g, '第二，'],
+                [/最后[,，]?\s*/g, '最后，'],
+                [/因此[,，]?\s*/g, '所以'],
+                [/然而[,，]?\s*/g, '不过'],
+                [/此外[,，]?\s*/g, '还有'],
+                [/并且[,，]?\s*/g, '而且'],
+                [/综上所述[,，]?\s*/g, '总的来说，'],
+                [/总而言之[,，]?\s*/g, '说白了，'],
+                [/换句话说[,，]?\s*/g, '也就是说，'],
+                [/与此同时[,，]?\s*/g, '同时，'],
+                [/事实上[,，]?\s*/g, '其实'],
+                [/值得注意的是[,，]?\s*/g, ''],
+                [/一般而言[,，]?\s*/g, '大多数情况'],
+                [/由此可见[,，]?\s*/g, '这样看来'],
+                [/基于(?:上述)?分析[,，]?\s*/g, '从上面来看，'],
+                [/相比之下[,，]?\s*/g, '对比一下，'],
+                [/反之亦然/g, '反过来也一样'],
+                [/不仅[\u4e00-\u9fff]+而且[\u4e00-\u9fff]+/g, ''],
+            ];
+            for (const [p, r] of formalConnectors) result = result.replace(p, r);
+
+            // 4. Formal words → casual (much expanded, with context protection)
+            const formalWords = [
+                ['进行', '做'],
+                ['认为', '觉得'],
+                ['提供', '给'],
+                ['了解', '知道'],
+                ['使用', '用'],
+                ['需要', '要'],
+                ['购买', '买'],
+                ['协助', '帮'],
+                ['告知', '告诉'],
+                ['获得', '拿到'],
+                ['显示', '看出'],
+                ['确保', '保证'],
+                ['增强', '提升'],
+                ['减少', '降低'],
+                ['改善', '变好'],
+                ['促进', '推动'],
+                ['维持', '保持'],
+                ['产生', '带来'],
+                ['造成', '导致'],
+                ['包含', '有'],
+                ['具备', '有'],
+                ['缺乏', '缺'],
+                ['实施', '做'],
+                ['执行', '完成'],
+                ['优化', '改进'],
+                ['评估', '看看'],
+                ['确认', '确定'],
+                ['验证', '检查'],
+                ['调整', '改'],
+                ['更新', '换新'],
+                ['删除', '去掉'],
+                ['选择', '选'],
+                ['决定', '定'],
+                ['完成', '做完'],
+                ['开始', '开始'],
+                ['停止', '停下'],
             ];
             
-            for (const [pattern, replacement] of formalPhrases) {
-                result = result.replace(pattern, replacement);
-            }
-            
-            // 2. Replace formal words
-            const formalWords = {
-                '进行': '做',
-                '认为': '觉得',
-                '提供': '给',
-                '了解': '知道',
-                '关于': '对于',
-                '包括': '包含',
-                '可能': '也许',
-                '非常': '特别',
-                '重要': '关键',
-                '问题': '问题',
-                '使用': '用',
-                '需要': '要',
-                '功能': '功能',
-                '系统': '系统',
-            };
-            
-            // 3. Add casual expressions
-            const casualPrefixes = ['说实话，', '其实吧，', '说真的，', '你知道吗，', ''];
-            if (result.length > 50 && !/^(说实话|其实|说真的|你知道)/.test(result)) {
-                const prefix = casualPrefixes[Math.floor(Math.random() * (casualPrefixes.length - 1))];
-                if (prefix) {
-                    result = prefix + result;
+            // Apply word replacements with sentence boundary awareness
+            // Split into sentences (Chinese period/stop markers)
+            const cnSents = result.split(/(?<=[。！？；\n])/);
+            const cnResult = cnSents.map(s => {
+                if (s.length > 100) {
+                    // Long sentence: process individual words
+                    for (const [f, c] of formalWords) {
+                        s = s.replace(new RegExp(f, 'g'), c);
+                    }
+                } else {
+                    // Short sentence: only replace clear cases
+                    for (const [f, c] of formalWords.slice(0, 15)) {
+                        s = s.replace(new RegExp(f, 'g'), c);
+                    }
+                }
+                return s;
+            });
+            result = cnResult.join('');
+
+            // 5. Replace formal sentence-end patterns
+            result = result.replace(/而已[\s。]/g, '罢了');
+            result = result.replace(/吗[\s。\?]/g, '吗');
+            result = result.replace(/吧[\s。]/g, '呗');
+            result = result.replace(/(?:等等|之类)[\s。]/g, '这些。');
+
+            // 6. Add sentence-level variation
+            const cnSentences = result.split(/(?<=[。！？；\n])/);
+            const variedCN = cnSentences.map((s, i) => {
+                s = s.trim();
+                if (!s) return s;
+                // Vary consecutive connectors
+                if (/^(所以|不过|但是|而且)/.test(s) && Math.random() < 0.4) {
+                    const alt = { '所以': '因此', '不过': '可', '但是': '但', '而且': '也' };
+                    for (const [k, v] of Object.entries(alt)) {
+                        if (s.startsWith(k)) { s = v + s.slice(k.length); break; }
+                    }
+                }
+                return s;
+            });
+            result = variedCN.join('');
+
+            // 7. Natural Chinese conversational injection (sentence-internal)
+            const midFillers = ['说白了，', '说句实话，', '你懂的，', '仔细想想，', ''];
+            if (result.length > 80) {
+                const pick = midFillers[Math.floor(Math.random() * midFillers.length)];
+                if (pick && !result.includes(pick)) {
+                    // Insert after first sentence
+                    const firstStop = result.match(/[。！？\n]/);
+                    if (firstStop && firstStop.index < result.length / 3) {
+                        const pos = firstStop.index + 1;
+                        result = result.slice(0, pos) + pick + result.slice(pos);
+                    }
                 }
             }
-            
+
+            // 8. Clean up: remove consecutive duplicate punctuation
+            result = result.replace(/([，。！？；])[，。！？；]+/g, '$1');
+            result = result.replace(/\s{2,}/g, ' ');
+
             return result.trim();
         }
-        
+
+        // ========== Japanese Humanizer v2 ==========
         function humanizeJapanese(text) {
             let result = text;
-            
-            // 1. Replace formal Japanese patterns
+
             const formalPatterns = [
-                [/ます$/g, 'ます'], // keep polite form
-                [/である/g, 'だ'],
-                [/である$/g, 'だ'],
+                [/である[\s。]/g, 'だ'],
+                [/でございます/g, 'です'],
                 [/いたします/g, 'します'],
                 [/させていただきます/g, 'させます'],
-                [/考えられます/g, '考えられます'],
-                [/重要な/g, '大事な'],
-                [/必要な/g, '必要な'],
+                [/致します/g, 'します'],
+                [/存じます/g, '思います'],
+                [/申し上げます/g, '言います'],
                 [/様々な/g, 'いろんな'],
-                [/効果的な/g, '効果的な'],
+                [/重要な/g, '大事な'],
+                [/効果的な/g, '効く'],
+                [/そのような/g, 'そういう'],
+                [/このような/g, 'こういう'],
+                [/いたしました/g, 'しました'],
+                [/おります/g, 'います'],
+                [/ございます/g, 'あります'],
+                [/かしこまりました/g, 'わかりました'],
             ];
-            
-            // 2. Add casual expressions
-            const casualPrefixes = ['正直に言うと、', '其实、', '说实话、', ''];
-            if (result.length > 30) {
-                const prefix = casualPrefixes[Math.floor(Math.random() * casualPrefixes.length)];
-                if (prefix && !result.startsWith(prefix)) {
-                    result = prefix + result;
-                }
+            for (const [p, r] of formalPatterns) result = result.replace(p, r);
+
+            // Natural conversational injection
+            if (result.length > 50) {
+                const fillers = ['実はね、', '', ''];
+                const f = fillers[Math.floor(Math.random() * fillers.length)];
+                if (f && !result.startsWith(f)) result = f + result;
             }
-            
-            // 3. Replace keigo indicators
-            result = result.replace(/でございます/g, 'です');
-            result = result.replace(/そのような/g, 'そういう');
-            result = result.replace(/このような/g, 'こういう');
-            result = result.replace(/いたしました/g, 'しました');
-            
+
             return result.trim();
         }
-        
+
+        // ========== Main processing ==========
         function humanizeText() {
-            const input = document.getElementById('input-text').value.trim();
-            
-            if (!input) {
-                alert('Please enter some text to humanize!');
-                return;
-            }
-            
-            // Show loading
-            document.getElementById('loading').classList.add('active');
-            document.getElementById('humanize-btn').disabled = true;
-            document.getElementById('output-section').style.display = 'none';
-            document.getElementById('compare-box').style.display = 'none';
-            
-            // Detect language
+            const input = el('input-text').value.trim();
+            if (!input) { alert('Please enter some text to humanize!'); return; }
+
+            el('loading').classList.add('active');
+            el('humanize-btn').disabled = true;
+            el('output-section').style.display = 'none';
+            el('compare-box').style.display = 'none';
+
             const lang = detectLanguage(input);
             const langNames = { english: 'English', chinese: '中文', japanese: '日本語' };
-            
-            // Simulate processing
-            setTimeout(() => {
-                let humanized;
+
+            // Process immediately (no artificial delay)
+            let humanized;
+            switch(lang) {
+                case 'chinese': humanized = humanizeChinese(input); break;
+                case 'japanese': humanized = humanizeJapanese(input); break;
+                default: humanized = humanizeEnglish(input);
+            }
+
+            // Apply second pass for deeper humanization
+            if (humanized.length > 50) {
                 switch(lang) {
-                    case 'chinese':
-                        humanized = humanizeChinese(input);
-                        break;
-                    case 'japanese':
-                        humanized = humanizeJapanese(input);
-                        break;
-                    default:
-                        humanized = humanizeEnglish(input);
+                    case 'chinese': humanized = humanizeChineseSecondPass(humanized); break;
+                    case 'english': humanized = humanizeEnglishSecondPass(humanized); break;
                 }
-                
-                document.getElementById('output-text').value = humanized;
-                document.getElementById('output-count').textContent = humanized.length;
-                document.getElementById('lang-badge').textContent = langNames[lang];
-                document.getElementById('output-section').style.display = 'block';
-                
-                // Show quick compare
-                document.getElementById('before-preview').textContent = input.substring(0, 100) + (input.length > 100 ? '...' : '');
-                document.getElementById('after-preview').textContent = humanized.substring(0, 100) + (humanized.length > 100 ? '...' : '');
-                document.getElementById('compare-box').style.display = 'block';
-                
-                // Hide loading
-                document.getElementById('loading').classList.remove('active');
-                document.getElementById('humanize-btn').disabled = false;
-                
-                // Scroll to output
-                document.getElementById('output-section').scrollIntoView({ behavior: 'smooth' });
-            }, 2000);
+            }
+
+            showResult(input, humanized, langNames[lang]);
         }
-        
+
+        function humanizeChineseSecondPass(text) {
+            // Second pass: finer adjustments
+            let result = text;
+            // Remove excessive tone particles
+            result = result.replace(/[啊呀呢嘛吧呗哦哈]{2,}/g, '');
+            // Ensure sentences don't all start the same way
+            const sents = result.split(/(?<=[。！？\n])/);
+            const openers = new Set();
+            const varied = sents.map(s => {
+                if (s.length < 3) return s;
+                const first2 = s.slice(0, 2);
+                if (openers.has(first2) && Math.random() < 0.5) {
+                    return '那' + s;
+                }
+                openers.add(first2);
+                return s;
+            });
+            return varied.join('').trim();
+        }
+
+        function humanizeEnglishSecondPass(text) {
+            let result = text;
+            // Remove double spaces and normalize punctuation
+            result = result.replace(/\s{2,}/g, ' ');
+            result = result.replace(/\s([.,!?;:])/g, '$1');
+            // Ensure no 3+ consecutive sentences start with "You" or "The"
+            const sents = result.split(/(?<=[.!?])\s+/);
+            let youCount = 0, theCount = 0;
+            const varied = sents.map(s => {
+                if (/^You\b/i.test(s)) { youCount++; } else { youCount = 0; }
+                if (/^The\b/i.test(s)) { theCount++; } else { theCount = 0; }
+                if (youCount >= 3) { s = s.replace(/^You\b/i, 'It'); youCount = 0; }
+                if (theCount >= 3) { s = s.replace(/^The\b/i, 'A'); theCount = 0; }
+                return s;
+            });
+            return varied.join(' ');
+        }
+
+        function showResult(input, humanized, langName) {
+            el('output-text').value = humanized;
+            el('output-count').textContent = humanized.length;
+            el('lang-badge').textContent = langName;
+            el('output-section').style.display = 'block';
+
+            const previewLen = 100;
+            el('before-preview').textContent = input.substring(0, previewLen) + (input.length > previewLen ? '...' : '');
+            el('after-preview').textContent = humanized.substring(0, previewLen) + (humanized.length > previewLen ? '...' : '');
+            el('compare-box').style.display = 'block';
+
+            el('loading').classList.remove('active');
+            el('humanize-btn').disabled = false;
+
+            el('output-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
         function humanizeAgain() {
-            humanizeText();
+            // Re-humanize the OUTPUT (iterative improvement)
+            const output = el('output-text').value.trim();
+            if (!output) { alert('No text to re-humanize!'); return; }
+
+            const lang = detectLanguage(output);
+            const langNames = { english: 'English', chinese: '中文', japanese: '日本語' };
+
+            el('loading').classList.add('active');
+            let humanized;
+            switch(lang) {
+                case 'chinese': humanized = humanizeChinese(output); break;
+                case 'japanese': humanized = humanizeJapanese(output); break;
+                default: humanized = humanizeEnglish(output);
+            }
+            showResult(output, humanized, langNames[lang]);
         }
-        
+
         function copyOutput() {
-            const output = document.getElementById('output-text');
+            const output = el('output-text');
             output.select();
-            document.execCommand('copy');
-            
-            const btn = event.target;
+            output.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(output.value).catch(() => document.execCommand('copy'));
+
+            const btns = document.querySelectorAll('.btn-secondary');
+            const btn = btns[0]; // first btn-secondary is Copy
             const originalText = btn.textContent;
             btn.textContent = '✅ Copied!';
-            setTimeout(() => {
-                btn.textContent = originalText;
-            }, 2000);
+            setTimeout(() => { btn.textContent = originalText; }, 2000);
         }
-        
+
         function clearAll() {
-            document.getElementById('input-text').value = '';
-            document.getElementById('output-text').value = '';
-            document.getElementById('input-count').textContent = '0';
-            document.getElementById('output-count').textContent = '0';
-            document.getElementById('output-section').style.display = 'none';
-            document.getElementById('compare-box').style.display = 'none';
+            el('input-text').value = '';
+            el('output-text').value = '';
+            el('input-count').textContent = '0';
+            el('output-count').textContent = '0';
+            el('output-section').style.display = 'none';
+            el('compare-box').style.display = 'none';
         }
     </script>
 </body>
